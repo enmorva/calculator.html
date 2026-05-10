@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Калькулятор</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #99b891;
+            margin: 0;
+        }
+        .calculator {
+            background: #99b891;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        input {
+            width: 100%;
+            height: 50px;
+            font-size: 24px;
+            text-align: right;
+            margin-bottom: 15px;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        }
+        button {
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .history {
+            margin-top: 20px;
+            background: #588577;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 100px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .history h4 {
+            margin: 0 0 5px 0;
+        }
+        .history-item {
+            font-size: 14px;
+            padding: 3px 0;
+            border-bottom: 1px solid #3b5671;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <input type="text" id="display" readonly placeholder="0">
+
+        <div class="buttons">
+            <button class="btn" data-value="7">7</button>
+            <button class="btn" data-value="8">8</button>
+            <button class="btn" data-value="9">9</button>
+            <button class="op" data-op="/">/</button>
+
+            <button class="btn" data-value="4">4</button>
+            <button class="btn" data-value="5">5</button>
+            <button class="btn" data-value="6">6</button>
+            <button class="op" data-op="*">*</button>
+
+            <button class="btn" data-value="1">1</button>
+            <button class="btn" data-value="2">2</button>
+            <button class="btn" data-value="3">3</button>
+            <button class="op" data-op="-">-</button>
+
+            <button class="btn" data-value="0">0</button>
+            <button class="btn" data-value=".">.</button>
+            <button id="clear">C</button>
+            <button class="op" data-op="+">+</button>
+
+            <button id="equals" style="grid-column: span 4;">=</button>
+        </div>
+
+        <div class="history">
+            <h4> История действий</h4>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+
+        const display = document.getElementById('display');
+        const historyList = document.getElementById('historyList');
+        let currentInput = '';          // Текущее вводимое выражение
+        let lastResult = null;           // Последний результат (для продолжения вычислений)
+        let justCalculated = false;      // Флаг, что только что нажали "="
+
+        function roundResult(num) {
+            // Оставляем не больше 10 знаков после запятой
+            return Math.round(num * 1e10) / 1e10;
+        }
+
+        function addToHistory(expression, result) {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            const formattedResult = parseFloat(result.toFixed(10)).toString();
+            item.textContent = `${expression} = ${formattedResult}`;
+            historyList.appendChild(item);
+            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function calculate(expression) {
+            const operators = ['+', '-', '*', '/'];
+            let operator = null;
+            let operatorIndex = -1;
+
+            for (let i = 1; i < expression.length; i++) {
+                if (operators.includes(expression[i])) {
+                    operator = expression[i];
+                    operatorIndex = i;
+                    break;
+                }
+            }
+
+            if (!operator) return null;
+
+            const left = parseFloat(expression.substring(0, operatorIndex));
+            const right = parseFloat(expression.substring(operatorIndex + 1));
+
+            if (isNaN(left) || isNaN(right)) return null;
+
+            let result;
+            switch (operator) {
+                case '+': result = left + right; break;
+                case '-': result = left - right; break;
+                case '*': result = left * right; break;
+                case '/':
+                    if (right === 0) return null;
+                    result = left / right;
+                    break;
+                default: return null;
+            }
+
+            return roundResult(result);
+        }
+
+        function updateDisplay() {
+            display.value = currentInput || '0';
+        }
+
+        function handleInput(value) {
+            if (justCalculated) {
+                if (value === '+' || value === '-' || value === '*' || value === '/') {
+                    if (lastResult !== null) {
+                        currentInput = String(lastResult) + value;
+                        justCalculated = false;
+                    }
+                } else {
+                    currentInput = value;
+                    justCalculated = false;
+                }
+            } else {
+                currentInput += value;
+            }
+            updateDisplay();
+        }
+
+        function handleEquals() {
+            if (currentInput === '') return;
+
+            const result = calculate(currentInput);
+
+            if (result !== null && !isNaN(result)) {
+                addToHistory(currentInput, result);
+                lastResult = result;
+                currentInput = String(result);
+                updateDisplay();
+                justCalculated = true;
+            } else {
+                display.value = 'Ошибка';
+                currentInput = '';
+                lastResult = null;
+                justCalculated = false;
+                setTimeout(() => updateDisplay(), 1500);
+            }
+        }
+
+        function handleClear() {
+            currentInput = '';
+            lastResult = null;
+            justCalculated = false;
+            updateDisplay();
+        }
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', () => handleInput(btn.getAttribute('data-value')));
+        });
+        document.querySelectorAll('.op').forEach(btn => {
+            btn.addEventListener('click', () => handleInput(btn.getAttribute('data-op')));
+        });
+        document.getElementById('equals').addEventListener('click', handleEquals);
+        document.getElementById('clear').addEventListener('click', handleClear);
+    </script>
+</body>
+</html>
